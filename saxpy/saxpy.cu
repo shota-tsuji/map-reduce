@@ -22,18 +22,33 @@ int main(void)
 		y[i] = 2.0f;
 	}
 
+	cudaEvent_t start, stop;
+	cudaEventCreate(&start);
+	cudaEventCreate(&stop);
+
 	cudaMemcpy(d_x, x, N*sizeof(float), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_y, y, N*sizeof(float), cudaMemcpyHostToDevice);
 
+	cudaEventRecord(start);
+
 	// Perform SAXPY on 1M elements
-	saxpy<<<(N+255)/256, 256>>>(N, 2.0f, d_x, d_y);
+	saxpy<<<(N+511)/512, 512>>>(N, 2.0f, d_x, d_y);
+
+	cudaEventRecord(stop);
 
 	cudaMemcpy(y, d_y, N*sizeof(float), cudaMemcpyDeviceToHost);
 
+	cudaEventSynchronize(stop);
+	float milliseconds = 0;
+	cudaEventElapsedTime(&milliseconds, start, stop);
+
 	float maxError = 0.0f;
-	for (int i = 0; i < N; i++)
+	for (int i = 0; i < N; i++) {
 		maxError = max(maxError, abs(y[i]-4.0f));
+	}
+
 	printf("Max error: %f\n", maxError);
+	printf("Effective Bandwidth (GB/s): %f\n", N*4*3/milliseconds/1e6);
 
 	cudaFree(d_x);
 	cudaFree(d_y);
