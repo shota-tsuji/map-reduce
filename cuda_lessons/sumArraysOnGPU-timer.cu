@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
 	//cudaSetDevice(dev);
 	cudaDeviceProp deviceProp;
 	CHECK(cudaGetDeviceProperties(&deviceProp, dev));
-	printf("Using Device %d: %s\n", dev, deviceP.name);
+	printf("Using Device %d: %s\n", dev, deviceProp.name);
 	CHECK(cudaSetDevice(dev));
 
 	// ベクトルのデータサイズを設定
@@ -89,45 +89,56 @@ int main(int argc, char **argv) {
 	double iStart, iElaps;
 
 	// ホスト側でデータを初期化
+	iStart = cpuSecond();
 	initialData(h_A, nElem);
 	initialData(h_B, nElem);
-
+	iElaps = cpuSecond() - iStart;
 	memset(hostRef, 0, nBytes);
 	memset(gpuRef, 0, nBytes);
 
+	// 結果をチェックするためにホスト側でベクトルを加算
+	iStart = cpuSecond();
+	sumArrayOnHost(h_A, h_B, hostRef, nElem);
+	iElaps = cpuSecond() - iStart;
+
 	// デバイスのグローバルメモリを確保
 	float *d_A, *d_B, *d_C;
-	cudaMalloc((float**)&d_A, nBytes);
-	cudaMalloc((float**)&d_B, nBytes);
-	cudaMalloc((float**)&d_C, nBytes);
+	CHECK(cudaMalloc((float**)&d_A, nBytes));
+	CHECK(cudaMalloc((float**)&d_B, nBytes));
+	CHECK(cudaMalloc((float**)&d_C, nBytes));
+	
 
 	// ホストからデバイスへデータを転送
-	cudaMemcpy(d_A, h_A, nBytes, cudaMemcpyHostToDevice);
-	cudaMemcpy(d_B, h_B, nBytes, cudaMemcpyHostToDevice);
-	cudaMemcpy(d_C, gpuRef, nBytes, cudaMemcpyHostToDevice);
+	CHECK(cudaMemcpy(d_A, h_A, nBytes, cudaMemcpyHostToDevice));
+	CHECK(cudaMemcpy(d_B, h_B, nBytes, cudaMemcpyHostToDevice));	
+	CHECK(cudaMemcpy(d_C, gpuRef, nBytes, cudaMemcpyHostToDevice));
+	
 
 	// ホスト側でカーネルを呼び出す
-	dim3 block(nElem);
-	dim3 grid(1);
-	//dim3 block(1);
-	//dim3 grid(32);
+	int iLen = 1024;
+	dim3 block(iLen);
+	dim3 grid((nElem + block.x -1) / block.x);
 
+	iStart = cpuSecond();
 	sumArraysOnGPU<<< grid, block >>>(d_A, d_B, d_C, nElem);
-	printf("Execution configure <<<%d, %d>>>\n", grid.x, block.x);
+	CHECK(cudaDeviceSynchronize());
+	iElaps = cpuSecond() - iStart;
+	printf("sumArraysOnGPU <<<%d, %d>>> Time elapsed %f" \
+					"sec\n", grid.x, block.x, iElaps);
+
+	// カーネルのエラーをチェック
+	CHECK(cudaGetLastError());
 
 	// カーネルの結果をホスト側にコピー
 	cudaMemcpy(gpuRef, d_C, nBytes, cudaMemcpyDeviceToHost);
-
-	// 結果をチェックするためにホスト側でベクトルを加算
-	sumArrayOnHost(h_A, h_B, hostRef, nElem);
 
 	// デバイスの結果をチェック
 	checkResult(hostRef, gpuRef, nElem);
 
 	// デバイスのグローバルメモリを解放
-	cudaFree(d_A);
-	cudaFree(d_B);
-	cudaFree(d_C);
+	CHECK(cudaFree(d_A));
+	CHECK(cudaFree(d_B));
+	CHECK(cudaFree(d_C));
 
 	// ホストのメモリを解放
 	free(h_A);

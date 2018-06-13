@@ -49,7 +49,9 @@ void sumArrayOnHost(float *A, float *B, float *C, const int N){
 }
 
 __global__ void sumArraysOnGPU(float *A, float *B, float *C, const int N) {
-	int i = threadIdx.x;
+	//int i = threadIdx.x;
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	//int i = blockIdx.x;
 	C[i] = A[i] + B[i];
 }
 
@@ -86,10 +88,40 @@ int main(int argc, char **argv) {
 	cudaMalloc((float**)&d_B, nBytes);
 	cudaMalloc((float**)&d_C, nBytes);
 
+	// ホストからデバイスへデータを転送
+	cudaMemcpy(d_A, h_A, nBytes, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_B, h_B, nBytes, cudaMemcpyHostToDevice);
+	cudaMemcpy(d_C, gpuRef, nBytes, cudaMemcpyHostToDevice);
+
 	// ホスト側でカーネルを呼び出す
 	dim3 block(nElem);
 	dim3 grid(1);
+	//dim3 block(1);
+	//dim3 grid(32);
 
 	sumArraysOnGPU<<< grid, block >>>(d_A, d_B, d_C, nElem);
 	printf("Execution configure <<<%d, %d>>>\n", grid.x, block.x);
+
+	// カーネルの結果をホスト側にコピー
+	cudaMemcpy(gpuRef, d_C, nBytes, cudaMemcpyDeviceToHost);
+
+	// 結果をチェックするためにホスト側でベクトルを加算
+	sumArrayOnHost(h_A, h_B, hostRef, nElem);
+
+	// デバイスの結果をチェック
+	checkResult(hostRef, gpuRef, nElem);
+
+	// デバイスのグローバルメモリを解放
+	cudaFree(d_A);
+	cudaFree(d_B);
+	cudaFree(d_C);
+
+	// ホストのメモリを解放
+	free(h_A);
+	free(h_B);
+	free(hostRef);
+	free(gpuRef);
+
+	cudaDeviceReset();
+	return(0);
 }

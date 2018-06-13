@@ -1,6 +1,7 @@
 #include <Operators.hpp>
 #include <cassert>
 #include <iostream>
+#include <cstdint>
 //---------------------------------------------------------------------------
 using namespace std;
 //---------------------------------------------------------------------------
