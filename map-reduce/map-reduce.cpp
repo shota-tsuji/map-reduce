@@ -12,12 +12,28 @@ void map_func(ifstream& ifs, ofstream& ofs){
 	}
 }
 
+void reduce_func(map<string, int>& mp_all, ifstream& ifs){
+	string line;
+	while(ifs >> line){
+		stringstream ss(line);
+		string key;
+		int		 val;
+		getline(ss, key, ',');
+		ss >> val;
+		mp_all[key] += val;
+	}
+}
+
 int main(void){
 	map<string, int> mp1;
 	//int n;
-	ifstream in1;
-	in1.open("1.in");
-	ofstream out1("intermediate1.txt");
+	string str_in	 = "in-"  + to_string(1) + ".txt";
+	string str_out = "out-" + to_string(1) + ".txt";
+	ifstream in1(str_in);
+	//cout << str_in << endl;
+	//in1.open("1.in");
+	//in1.open(str_in);
+	ofstream out1(str_out);
 	//string word;
 	//while(in1 >> word){
 	//	cout << word << endl;
@@ -43,9 +59,11 @@ int main(void){
 	map_func(in2, out2);
 	// ここまでmap処理
 	
-	ifstream intermediate1("intermediate1.txt");
-	string row1;
+	ifstream intermediate1("out-1.txt");
+	//string row1;
 	map<string, int> map_all;
+	reduce_func(map_all, intermediate1);
+	/*
 	while(intermediate1 >> row1){
 		cout << row1 << endl;
 		stringstream ss(row1);
@@ -58,8 +76,11 @@ int main(void){
 		cout << key << "->" << val << endl;
 		map_all[key] += val;
 	}
+	*/
 	
 	ifstream intermediate2("intermediate2.txt");
+	reduce_func(map_all, intermediate2);
+	/*
 	string row2;
 	while(intermediate2 >> row2){
 		stringstream ss(row2);
@@ -70,6 +91,7 @@ int main(void){
 		cout << key << "->" << val << endl;
 		map_all[key] += val;
 	}
+	*/
 	for(auto itr = map_all.begin(); itr != map_all.end(); ++itr){
 		cout << itr->first << ", " << itr->second << endl;
 	}

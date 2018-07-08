@@ -32,7 +32,13 @@ int main(void)
 	cudaEventRecord(start);
 
 	// Perform SAXPY on 1M elements
-	saxpy<<<(N+511)/512, 512>>>(N, 2.0f, d_x, d_y);
+	saxpy<<<(N+255)/256, 256>>>(N, 2.0f, d_x, d_y);
+	cudaError_t errSync	 = cudaGetLastError();
+	cudaError_t errAsync = cudaDeviceSynchronize();
+	if (errSync != cudaSuccess)
+		printf("Sync kernel error: %s\n", cudaGetErrorString(errSync));
+	if (errAsync != cudaSuccess)
+		printf("Async kernel error: %s\n", cudaGetErrorString(errAsync));
 
 	cudaEventRecord(stop);
 
